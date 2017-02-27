@@ -1,0 +1,124 @@
+---
+title: "Coursera Getting and Cleaning Data Project"
+date: "15 de febrero de 2017"
+output: html_document
+---
+
+# Run_analysis
+
+## Step 0: Getting the data
+
+The previous step before doing this work is to get the data from the url provided. Firstly, we will load the neccessary packages for doing this project. 
+
+```{r}
+
+library(data.table)
+
+library(plyr)
+
+```
+
+We need to specify the directory where we will save the data. After, we will download the dataset from the given url. 
+
+```{r}
+current_directory <- getwd()
+subdirectory_data <- "Dataset.zip"
+directory_data <- file.path(current_directory, subdirectory_data)
+
+
+url <-"https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+download.file(url, directory_data)
+
+
+```
+
+Now, he unzip the created folder Dataset.zip. 
+
+```{r}
+
+unzip(directory_data)
+folder_name <- ""
+
+```
+
+Now, we can get the training and test sets. We have to take into consideration the name of the directory where the files with the date are allocated.
+
+```{r}
+X_training <- read.table("UCI HAR Dataset/train/X_train.txt")
+Y_training <- read.table("UCI HAR Dataset/train/Y_train.txt")
+subject_training <- read.table("UCI HAR Dataset/train/subject_train.txt")
+
+X_test <- read.table("UCI HAR Dataset/test/X_test.txt")
+Y_test <- read.table("UCI HAR Dataset/test/Y_test.txt")
+subject_test <- read.table("UCI HAR Dataset/test/subject_test.txt")
+
+```
+
+## Step 1: Merging the train and test data sets. 
+
+Now we merge the X of train and test into a single X. The same for Y and subject. 
+
+```{r}
+
+X <- rbind(X_training, X_test)
+Y <- rbind(Y_training,Y_test)
+subject <- rbind(subject_training, subject_test)
+
+```
+
+## Step 2: Extracting only the measurements on the mean and standard deviation for each measurement
+
+We will use a regular expression in order to extract only the column indices corresponding to measurements on the mean and standard deviation for each measurement. We will previously read the features on the corresponding file. We observ that the name of the features are in the second column of the file. After we extract the desired columns of the X data.
+
+```{r}
+
+features <- read.table("UCI HAR Dataset/features.txt")
+features_names <- features[,2]
+corresponding_indices <- grep("-(mean|std)\\(\\)",features_names)
+X <- X[,corresponding_indices]
+
+```
+
+## Step 3: Using descriptive activity/feature names to name the activities/features in the data set
+
+
+The next step is naming the columns in X data set using the features names that we can find in the features.txt file. After, we will give names to the acitivities of the Y data set using the activities names provided in the file activities_labels.txt. We will also provide a name for the column in the subject sata set
+
+```{r}
+
+names(X) <- features_names[corresponding_indices]
+names(Y) <- "activity"
+activities <- read.table("UCI HAR Dataset/activity_labels.txt")
+activities_names <- activities[,2]
+labels <- Y[,1]
+Y[,1] <- activities_names[labels] 
+names(subject) <- "subject"
+
+```
+
+
+## Step 4: Creating a  a second, independent tidy data set with the average of each variable for each activity and each subject.
+
+In first place, we merge the three data sets, X, Y and subject into a only data set, in which the first column will be the subject, the last column will correspond to the activity and the rest of columns will make reference to the features. After, for each variable, we will make the mean. For this purpose we previously will define a function which receives a matrix as parameter and calculates the mean of each column. We will use the ddply function  
+
+```{r}
+
+column_means <- function(mat){
+  col_means <- colMeans(mat[,2:67])
+  return (col_means)
+} 
+
+data <- cbind(subject, X, Y)
+average_activity_subject <- ddply(data,.(subject, activity),column_means)
+
+```
+
+The last step is to save the tidy data set that we have just created in a file, in our case it will be tidy_set.txt
+
+```{r}
+write.table(x = average_activity_subject, file = "tidy_set.txt", row.name = F)
+
+```
+
+
+
